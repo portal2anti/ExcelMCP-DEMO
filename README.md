@@ -1,8 +1,10 @@
-# ExcelMCP-DEMO
+# Excel MCP - DEMO
 
-**FP&A test data, capacity scenario & local Power Query agent.**
+**Lets generate test data in Excel, and use AI to chat and get perfect queries!**
 
-We used **Cursor** and the **Excel MCP** (Smithery) to generate dummy FP&A data, add a capacity layer, query it in natural language, and package a reusable Power Query. We also **built a local Power Query agent** (self-hosted web app + local LLM) so you can get M code from chat without sending data off your machine.
+Project had 2 phases:
+- We used **Cursor** and the **Excel MCP** (Smithery) to generate dummy 'FP&A' data, add aditional request for capacity data, query it in natural language, and package result in a reusable Power Query.
+- We also **built a local Power Query agent** (self-hosted web app + local LLM) so you can get M code from chat without sending data off your machine.
 
 All data in this repo is **dummy** — no real business logic.
 
