@@ -44,28 +44,12 @@ We **already implemented** one of the “next steps”: a **self-built agent wit
 - **Login** — Password (default `12345`). Wrong password = retry; no access until correct.
 - **Chat** — Natural-language requests → Power Query M code. History in session; clearable.
 
-![Agent — Login](agent/sc1.png)
+![Agent — Login](https://raw.githubusercontent.com/portal2anti/ExcelMCP-DEMO/main/agent/sc1.png)
 
-![Agent — Chat](agent/sc2.png)
+![Agent — Chat](https://raw.githubusercontent.com/portal2anti/ExcelMCP-DEMO/main/agent/sc2.png)
 
 - **Stack:** Plain HTML/JS frontend, Python (FastAPI) backend, **Ollama** (e.g. `llama3.2`) on your machine. No Excel or chat data is sent to the cloud.
 - **Run:** See **[agent/README.md](agent/README.md)** for Ollama install, venv, and `uvicorn` (or `./run.sh`).
-
----
-
-## Quick reference
-
-**Regenerate data**
-
-- Full (FP&A + Capacity): `python generate_fpna_test_data.py` (use project `.venv`).
-- Add capacity only: `python enrich_capacity.py`.
-
-**Dependencies:** `pip install -r requirements.txt` (or use existing `.venv`).
-
-**Pushing testData.xlsx to GitHub** (if the repo was created without it):
-
-- **Option A:** `GITHUB_TOKEN=ghp_xxx python3 push_excel_to_github.py`
-- **Option B:** `git push origin main` (if cloned and file committed).
 
 ---
 
