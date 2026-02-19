@@ -32,6 +32,7 @@ All data in this repo is **dummy** — no real business logic.
 | **HowToRun-Top5Capacity.md** | Steps to run that query in Excel (table name, Advanced Editor, Close & Load). |
 | **requirements.txt** | Python: `openpyxl`. |
 | **push_excel_to_github.py** | Uploads `testData.xlsx` via GitHub API (for large file). |
+| **push_agent_images_to_github.py** | Re-pushes `agent/sc1.png` and `agent/sc2.png` as binary blobs so they render in the README. Run with `GITHUB_TOKEN=ghp_xxx python3 push_agent_images_to_github.py` if the screenshots show as broken. |
 | **agent/** | Local Power Query agent (see below). |
 | **going-forward.md** | Longer guide: next-phase options, data safety, where the agent runs. |
 
@@ -44,9 +45,8 @@ We **already implemented** one of the “next steps”: a **self-built agent wit
 - **Login** — Password (default `12345`). Wrong password = retry; no access until correct.
 - **Chat** — Natural-language requests → Power Query M code. History in session; clearable.
 
-![Agent — Login](https://raw.githubusercontent.com/portal2anti/ExcelMCP-DEMO/main/agent/sc1.png)
-
-![Agent — Chat](https://raw.githubusercontent.com/portal2anti/ExcelMCP-DEMO/main/agent/sc2.png)
+![Agent — Login](agent/sc1.png)  
+![Agent — Chat](agent/sc2.png)
 
 - **Stack:** Plain HTML/JS frontend, Python (FastAPI) backend, **Ollama** (e.g. `llama3.2`) on your machine. No Excel or chat data is sent to the cloud.
 - **Run:** See **[agent/README.md](agent/README.md)** for Ollama install, venv, and `uvicorn` (or `./run.sh`).
@@ -75,3 +75,5 @@ We **already implemented** one of the “next steps”: a **self-built agent wit
 ---
 
 *Summary: Cursor + Excel MCP for FP&A test data and capacity; reusable Power Query and how-to; local Power Query agent in `agent/` (Ollama, no data off machine).*
+
+**If the agent screenshots above show as broken (question mark) on GitHub:** the repo’s PNGs may have been stored as base64 text. Run once: `GITHUB_TOKEN=ghp_your_token python3 push_agent_images_to_github.py` — this re-pushes the images as proper binary blobs so they render.
