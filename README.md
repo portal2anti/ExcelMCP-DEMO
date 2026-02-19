@@ -1,114 +1,93 @@
-# ExcelMCP-DEMO — FP&A test data, capacity & Power Query agent
+# ExcelMCP-DEMO
 
-A small demo project: we used **Cursor** (the AI IDE) and the **Excel MCP server** (via Smithery) to generate fake FP&A-style data, add a “capacity” layer, query it in natural language, and then package a reusable Excel query for colleagues. We also built a **local Power Query agent** (in the `agent/` folder): a password-protected web app that uses a local LLM (Ollama) to generate Power Query M code from natural language — no data leaves your machine.
+**FP&A test data, capacity scenario & local Power Query agent.**
 
-Everything in this repo is **dummy data** — no real business relations, no real numbers. It’s only for trying out the workflow and sharing the query.
+We used **Cursor** and the **Excel MCP** (Smithery) to generate dummy FP&A data, add a capacity layer, query it in natural language, and package a reusable Power Query. We also **built a local Power Query agent** (self-hosted web app + local LLM) so you can get M code from chat without sending data off your machine.
 
----
-
-## What we did (overview)
-
-1. **Connected Excel via Smithery MCP**  
-   We added the Excel MCP server to Cursor so the AI could work with Excel (read/write) without opening the file manually.
-
-2. **Generated FP&A test data**  
-   We created a single, big denormalized table (`testData`) with fake financial planning data: entities, regions, departments, product lines, scenarios (Actual, Budget, Forecast, Prior Year), and P&L-style columns (Revenue, COGS, OpEx, EBITDA, Headcount, etc.) at month level.
-
-3. **Enriched with fake “capacity”**  
-   We added a **Capacity** scenario and two columns — **Unused Headcount** and **Unused FTE** — plus extra rows that represent “unused capacity” per month. Again, this is dummy data; there are no real relations or logic behind the numbers.
-
-4. **Queried the data in Cursor (LLM mode)**  
-   We asked Cursor in plain language (e.g. “top 5 unused capacity per month, where are they?”). The AI read the Excel file (via Python/openpyxl in this setup), ran the logic, and returned a table in chat. That’s the “query data in LLM mode” part.
-
-5. **Prepared a reusable Excel query and guide**  
-   So a colleague can get the same result without Cursor, we wrote a **Power Query** script and a short **how-to**: they open their copy of the file, run the query in Excel, and get the same “top 5 unused capacity per month” view.
-
-6. **Built a local Power Query agent**  
-   In the **`agent/`** folder we added a small web app: plain HTML/JS frontend and Python (FastAPI) backend that talks to **Ollama** (local LLM). You log in with a password (default `12345`), type requests in natural language (e.g. “top 5 rows per month by Unused FTE”), and the agent returns Power Query M code. All processing stays on your machine; no Excel or chat data is sent to the cloud. See **agent/README.md** for setup (Ollama, venv, uvicorn) and screenshots.
+All data in this repo is **dummy** — no real business logic.
 
 ---
 
-## What’s in this repo
+## What we did
 
-| Item | What it is |
-|------|------------|
-| **testData.xlsx** | The main output: one sheet `testData` with ~48k rows of dummy FP&A + capacity data. |
-| **generate_fpna_test_data.py** | Python script that creates the initial FP&A table (and can include the Capacity scenario). Uses `openpyxl`; run with the project’s `.venv`. |
-| **enrich_capacity.py** | Python script that adds the Capacity scenario and the columns Unused Headcount / Unused FTE to an existing `testData.xlsx`. |
-| **Top5UnusedCapacityPerMonth.pq** | Power Query (M) script: “top 5 unused capacity per month” by Unused FTE (then Unused Headcount). Your colleague can paste this into Excel’s Power Query Advanced Editor. |
-| **HowToRun-Top5Capacity.md** | Step-by-step guide for running that query in Excel (table name, Advanced Editor, Close & Load). |
-| **requirements.txt** | Python dependency: `openpyxl` (for generating and enriching the Excel file). |
-| **push_excel_to_github.py** | Script to upload `testData.xlsx` to this repo via GitHub API (use when the file is too large for other tools). See below. |
-| **agent/** | Local Power Query agent: web UI + Python backend + Ollama. Password-protected; generates Power Query M from natural language. See [agent/README.md](agent/README.md). |
-| **going-forward.md** | Short guide on next-phase options (Cursor vs other tools, data safeguarding, where the agent runs). |
+| Step | Description |
+|------|-------------|
+| 1 | **Excel MCP** — Connected Cursor to Excel via Smithery for read/write without opening the file. |
+| 2 | **FP&A test data** — One denormalized sheet `testData`: entities, regions, departments, product lines, scenarios (Actual, Budget, Forecast, Prior Year), P&L columns, month-level. |
+| 3 | **Capacity** — Added scenario “Capacity”, columns Unused Headcount / Unused FTE, and extra rows (dummy unused capacity per month). |
+| 4 | **Query in Cursor** — Asked in plain language (e.g. “top 5 unused capacity per month”); AI returned a table via Python/openpyxl. |
+| 5 | **Reusable Power Query** — Wrote a `.pq` script and how-to so anyone can run the same “top 5 per month” in Excel. |
+| 6 | **Local Power Query agent** — Built a web app in `agent/`: password-protected chat UI, Python backend, **Ollama (local LLM)**. You type requests → get M code. **Already implemented:** self-hosted agent + local LLM (no data leaves your machine). |
 
 ---
 
-## The `agent/` folder
+## Repo contents
 
-The **agent** is a self-contained web app you can run on your own machine:
-
-- **Frontend:** Plain HTML and JavaScript — login screen (password), then chat with an input box, Send button, and conversation history (clearable).
-- **Backend:** Python (FastAPI) — serves the UI, checks password via `POST /api/auth`, and forwards chat to a local LLM.
-- **LLM:** **Ollama** (e.g. model `llama3.2`) — runs locally; no data is sent to the cloud.
-- **Flow:** Log in with the default password `12345` (or the one you set via `PASSWORD`), then type requests like “top 5 rows per month by Unused FTE for table testData”; the agent responds with Power Query M code you can paste into Excel.
-
-Screenshots and full setup (Ollama install, venv, running the server) are in **[agent/README.md](agent/README.md)**.
-
----
-
-## Pushing testData.xlsx to the remote repo
-
-If the repo was created without `testData.xlsx` (e.g. via Smithery file-by-file), you can add it in one of two ways:
-
-**Option A — GitHub API script (no git auth needed)**  
-1. Create a [GitHub personal access token](https://github.com/settings/tokens) with `repo` scope.  
-2. From the project folder, run:  
-   `GITHUB_TOKEN=ghp_your_token_here python3 push_excel_to_github.py`  
-   The script uploads only `testData.xlsx` using the Git Data API (no command-line size limit).
-
-**Option B — Git push**  
-If you have the repo cloned and `testData.xlsx` committed locally:  
-`git push origin main`  
-(Use your usual GitHub credentials or SSH.)
+| Item | Description |
+|------|-------------|
+| **testData.xlsx** | One sheet `testData`, ~48k rows dummy FP&A + capacity. |
+| **generate_fpna_test_data.py** | Creates the FP&A table (openpyxl). Run with project `.venv`. |
+| **enrich_capacity.py** | Adds Capacity scenario and Unused HC/FTE columns to existing `testData.xlsx`. |
+| **Top5UnusedCapacityPerMonth.pq** | Power Query M: top 5 by Unused FTE per month. Paste into Excel Power Query Advanced Editor. |
+| **HowToRun-Top5Capacity.md** | Steps to run that query in Excel (table name, Advanced Editor, Close & Load). |
+| **requirements.txt** | Python: `openpyxl`. |
+| **push_excel_to_github.py** | Uploads `testData.xlsx` via GitHub API (for large file). |
+| **agent/** | Local Power Query agent (see below). |
+| **going-forward.md** | Longer guide: next-phase options, data safety, where the agent runs. |
 
 ---
 
-## Important details (so nothing is missed)
+## The agent (self-hosted + local LLM)
 
-- **Excel MCP** was added in Cursor via Smithery (`smithery mcp add haris-musa/excel-mcp-server --client cursor`). After adding, we used Python + openpyxl in the project to generate and enrich the file; the MCP can be used for other Excel operations from Cursor as needed.
-- **Data is denormalized**: one row per combination of dimensions (Entity, Region, Department, Product Line, Scenario, Year, Period). No separate “fact” and “dimension” tables — everything is in one sheet for simplicity.
-- **Capacity** is implemented as an extra **scenario** (“Capacity”) and two **columns** (Unused Headcount, Unused FTE). Capacity rows have financials set to 0 and Comment like “Unused capacity (month)”. Relations between capacity and other rows are not modeled; it’s dummy data.
-- **Query in Cursor**: We didn’t use the Excel MCP to run the “top 5 per month” logic; we used a small Python snippet (e.g. in the chat) that loads `testData.xlsx`, filters Scenario = Capacity, sorts, groups by month, and takes top 5. That’s what we mean by “query data in LLM mode” — you describe what you want in chat, and the AI produces the code and the result.
-- **Reuse in Excel**: The `.pq` file is the “pure query” — no Cursor, no Python. Your colleague only needs their copy of the workbook and the steps in **HowToRun-Top5Capacity.md** (name the table `testData`, paste the M code, Close & Load).
+We **already implemented** one of the “next steps”: a **self-built agent with a local LLM**. It’s in the **`agent/`** folder.
 
----
+- **Login** — Password (default `12345`). Wrong password = retry; no access until correct.
+- **Chat** — Natural-language requests → Power Query M code. History in session; clearable.
 
-## How to regenerate or enrich (for you)
+![Agent — Login](agent/sc1.png)
 
-- **Full regenerate** (FP&A + Capacity in one go):  
-  `python generate_fpna_test_data.py`  
-  (use the repo’s virtualenv: e.g. `.venv/bin/python generate_fpna_test_data.py`.)
+![Agent — Chat](agent/sc2.png)
 
-- **Only add capacity** to an existing `testData.xlsx`:  
-  `python enrich_capacity.py`  
-  (same: run with `.venv` and ensure `testData.xlsx` is in the project folder.)
-
-- **Dependencies**:  
-  `pip install -r requirements.txt` (or use the existing `.venv`).
+- **Stack:** Plain HTML/JS frontend, Python (FastAPI) backend, **Ollama** (e.g. `llama3.2`) on your machine. No Excel or chat data is sent to the cloud.
+- **Run:** See **[agent/README.md](agent/README.md)** for Ollama install, venv, and `uvicorn` (or `./run.sh`).
 
 ---
 
-## Handing off to a colleague
+## Quick reference
 
-Give them:
+**Regenerate data**
 
-1. Their copy of **testData.xlsx** (or the same structure).
-2. The file **Top5UnusedCapacityPerMonth.pq** (the Power Query script).
-3. The file **HowToRun-Top5Capacity.md** (or the same instructions in an email).
+- Full (FP&A + Capacity): `python generate_fpna_test_data.py` (use project `.venv`).
+- Add capacity only: `python enrich_capacity.py`.
 
-They don’t need Cursor, Python, or this repo — just Excel and the two files above.
+**Dependencies:** `pip install -r requirements.txt` (or use existing `.venv`).
+
+**Pushing testData.xlsx to GitHub** (if the repo was created without it):
+
+- **Option A:** `GITHUB_TOKEN=ghp_xxx python3 push_excel_to_github.py`
+- **Option B:** `git push origin main` (if cloned and file committed).
 
 ---
 
-*Summary: We used Cursor and the Excel MCP to generate and enrich dummy FP&A test data, queried it in natural language in Cursor, packaged a standalone Excel Power Query and a short guide for colleagues, and built a local Power Query agent (agent/) that generates M code from natural language using Ollama — all without sending data off your machine.*
+## Next steps & scenarios
+
+*(Condensed from [going-forward.md](going-forward.md).)*
+
+**Goal:** Let finance get new Power Queries via a chat-like interface, while safeguarding sensitive data and controlling where the agent runs.
+
+**Options:**
+
+| Option | Where it runs | Data | Best for |
+|--------|----------------|------|----------|
+| **Cursor (desktop)** | User’s machine | Local only | Power users, no central app. |
+| **Your backend + LLM API** | Your server | You control what’s sent to LLM | Full control, compliance. |
+| **Vendor (e.g. ChatGPT Team, Copilot)** | Vendor cloud | Per vendor DPA/tenant | Fast rollout. |
+| **Local / on‑prem LLM** | Your DC or laptop | Never leaves your network | Strict data residency. |
+
+**We already implemented:** **Self-built agent + local LLM** — the `agent/` app uses Ollama on your machine; no data leaves it. Other paths (Cursor-only, internal app with cloud LLM, vendor chat) are described in **going-forward.md**.
+
+**Data safety:** Don’t send raw workbooks to a public LLM. Use local files, your backend (send only schema/sample to LLM), or a compliant vendor / on‑prem model.
+
+---
+
+*Summary: Cursor + Excel MCP for FP&A test data and capacity; reusable Power Query and how-to; local Power Query agent in `agent/` (Ollama, no data off machine).*
