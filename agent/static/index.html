@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Power Query Agent</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; background: #1a1a2e; color: #eee; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    h1 { margin: 0.5rem 1rem; font-size: 1.25rem; flex-shrink: 0; }
+    #status { font-size: 0.85rem; color: #888; margin: 0 1rem 0.5rem; flex-shrink: 0; }
+    #loginBox { max-width: 320px; margin: 2rem auto; padding: 1.5rem; background: #16213e; border-radius: 8px; }
+    #loginBox input { width: 100%; padding: 0.5rem; margin: 0.5rem 0; border: 1px solid #0f3460; border-radius: 4px; background: #1a1a2e; color: #eee; }
+    #loginBox button { width: 100%; padding: 0.5rem; margin-top: 0.5rem; background: #e94560; border: none; border-radius: 4px; color: #fff; cursor: pointer; }
+    #chatArea { display: none; flex: 1; flex-direction: column; min-height: 0; max-width: 900px; margin: 0 auto; width: 100%; padding: 0 1rem 1rem; }
+    #chatArea.visible { display: flex; }
+    #messagesWrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    #messages { flex: 1; overflow-y: auto; padding: 1rem 0; }
+    .msg { margin: 0.75rem 0; padding: 0.75rem; border-radius: 8px; max-width: 85%; }
+    .msg.user { background: #0f3460; margin-left: 0; }
+    .msg.agent { background: #16213e; margin-right: 0; margin-left: auto; white-space: pre-wrap; font-family: 'Consolas', monospace; font-size: 0.9rem; }
+    #inputRow { flex-shrink: 0; display: flex; gap: 0.5rem; padding: 0.5rem 0; align-items: center; }
+    #userInput { flex: 1; padding: 0.6rem; border: 1px solid #0f3460; border-radius: 4px; background: #1a1a2e; color: #eee; font-size: 1rem; }
+    #sendBtn { padding: 0.6rem 1.25rem; background: #e94560; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 1rem; }
+    #sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #clearBtn { padding: 0.5rem 0.75rem; background: #0f3460; border: none; border-radius: 4px; color: #eee; cursor: pointer; font-size: 0.9rem; }
+    .error { color: #e94560; margin: 0.5rem 0; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+  <h1>Power Query Agent</h1>
+  <div id="status"></div>
+
+  <div id="loginBox" style="display: none;">
+    <p>Enter password to continue:</p>
+    <input type="password" id="password" placeholder="Password" />
+    <button type="button" id="loginBtn">Continue</button>
+    <p id="loginError" class="error" style="display: none;"></p>
+  </div>
+
+  <div id="chatArea" class="">
+    <div id="messagesWrap">
+      <div id="messages"></div>
+    </div>
+    <div id="inputRow">
+      <input type="text" id="userInput" placeholder="e.g. Top 5 rows per month by Unused FTE for table testData" />
+      <button type="button" id="sendBtn">Send</button>
+      <button type="button" id="clearBtn">Clear history</button>
+    </div>
+    <p id="chatError" class="error" style="display: none;"></p>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const userInputEl = document.getElementById('userInput');
+    const sendBtnEl = document.getElementById('sendBtn');
+    const clearBtnEl = document.getElementById('clearBtn');
+    const loginBox = document.getElementById('loginBox');
+    const chatArea = document.getElementById('chatArea');
+    const passwordEl = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginError = document.getElementById('loginError');
+    const chatError = document.getElementById('chatError');
+    const statusEl = document.getElementById('status');
+
+    const STORAGE_KEY = 'pq_agent_history';
+    let token = localStorage.getItem('pq_agent_token') || '';
+
+    function show(el) { el.style.display = ''; }
+    function hide(el) { el.style.display = 'none'; }
+
+    function loadHistory() {
+      try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (_) { return []; }
+    }
+    function saveHistory(history) {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    }
+
+    function renderHistory(history) {
+      messagesEl.innerHTML = '';
+      history.forEach(function (item) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + item.role;
+        div.textContent = item.content;
+        messagesEl.appendChild(div);
+      });
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addToHistory(role, content) {
+      const history = loadHistory();
+      history.push({ role: role, content: content });
+      saveHistory(history);
+      const div = document.createElement('div');
+      div.className = 'msg ' + role;
+      div.textContent = content;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    async function checkHealth() {
+      try {
+        const r = await fetch('/api/health');
+        const d = await r.json();
+        if (d.ollama === 'ok') {
+          statusEl.textContent = 'Ollama connected. Models: ' + (d.models && d.models.length ? d.models.join(', ') : 'none');
+        } else {
+          statusEl.textContent = 'Ollama not reachable: ' + (d.detail || 'unknown');
+        }
+      } catch (e) {
+        statusEl.textContent = 'Backend / Ollama check failed: ' + e.message;
+      }
+    }
+
+    (async function init() {
+      const configRes = await fetch('/api/config').catch(function() { return { ok: false }; });
+      const config = configRes.ok ? await configRes.json() : { authRequired: true };
+      if (!config.authRequired) {
+        token = 'none';
+        chatArea.classList.add('visible');
+        hide(loginBox);
+        checkHealth();
+        renderHistory(loadHistory());
+      } else {
+        loginBox.style.display = 'block';
+        const r = await fetch('/api/health').catch(function() { return { ok: false }; });
+        const d = r.ok ? await r.json() : {};
+        if (d.ollama === 'ok') statusEl.textContent = 'Ollama connected.';
+        loginBtn.onclick = async function() {
+          loginError.style.display = 'none';
+          const pwd = passwordEl.value.trim();
+          if (!pwd) { show(loginError); loginError.textContent = 'Enter password'; return; }
+          try {
+            const authRes = await fetch('/api/auth', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: pwd })
+            });
+            const data = await authRes.json().catch(function() { return {}; });
+            if (authRes.ok) {
+              token = pwd;
+              localStorage.setItem('pq_agent_token', token);
+              hide(loginBox);
+              chatArea.classList.add('visible');
+              checkHealth();
+              renderHistory(loadHistory());
+            } else {
+              show(loginError);
+              loginError.textContent = (data && data.detail) || (authRes.status === 401 ? 'Wrong password. Try again.' : 'Login failed.');
+              passwordEl.focus();
+            }
+          } catch (e) {
+            show(loginError);
+            loginError.textContent = e.message || 'Network error';
+          }
+        };
+        if (token && token !== 'none') {
+          try {
+            const authRes = await fetch('/api/auth', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: token })
+            });
+            const data = await authRes.json().catch(function() { return {}; });
+            if (authRes.ok) {
+              chatArea.classList.add('visible');
+              hide(loginBox);
+              checkHealth();
+              renderHistory(loadHistory());
+              return;
+            }
+          } catch (_) {}
+          token = '';
+          localStorage.removeItem('pq_agent_token');
+        }
+      }
+    })();
+
+    clearBtnEl.onclick = function() {
+      saveHistory([]);
+      messagesEl.innerHTML = '';
+      hide(chatError);
+    };
+
+    sendBtnEl.onclick = async function() {
+      const msg = userInputEl.value.trim();
+      if (!msg) return;
+      hide(chatError);
+      addToHistory('user', msg);
+      userInputEl.value = '';
+      sendBtnEl.disabled = true;
+      const history = loadHistory().slice(0, -1).map(function(h) { return { role: h.role, content: h.content }; });
+      try {
+        const r = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ message: msg, history: history })
+        });
+        const data = await r.json().catch(function() { return {}; });
+        if (!r.ok) {
+          show(chatError);
+          chatError.textContent = data.detail || r.statusText || 'Request failed';
+          addToHistory('agent', '(Error: ' + (data.detail || r.statusText) + ')');
+          return;
+        }
+        addToHistory('agent', data.reply || '(No response)');
+      } catch (e) {
+        show(chatError);
+        chatError.textContent = e.message;
+        addToHistory('agent', '(Error: ' + e.message + ')');
+      }
+      sendBtnEl.disabled = false;
+    };
+    userInputEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendBtnEl.click(); });
+  </script>
+</body>
+</html>
