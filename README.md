@@ -45,8 +45,9 @@ We **already implemented** one of the “next steps”: a **self-built agent wit
 - **Login** — Password (default `12345`). Wrong password = retry; no access until correct.
 - **Chat** — Natural-language requests → Power Query M code. History in session; clearable.
 
-agent/sc1.png
-agent/sc2.png
+![Power Query Agent — Chat](sc1.png)
+
+![Power Query Agent — Chat](sc2.png)
 
 - **Stack:** Plain HTML/JS frontend, Python (FastAPI) backend, **Ollama** (e.g. `llama3.2`) on your machine. No Excel or chat data is sent to the cloud.
 - **Run:** See **[agent/README.md](agent/README.md)** for Ollama install, venv, and `uvicorn` (or `./run.sh`).
