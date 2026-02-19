@@ -76,7 +76,3 @@ We **already implemented** one of the “next steps”: a **self-built agent wit
 **Data safety:** Don’t send raw workbooks to a public LLM. Use local files, your backend (send only schema/sample to LLM), or a compliant vendor / on‑prem model.
 
 ---
-
-*Summary: Cursor + Excel MCP for FP&A test data and capacity; reusable Power Query and how-to; local Power Query agent in `agent/` (Ollama, no data off machine).*
-
-**If the agent screenshots above show as broken (question mark) on GitHub:** the repo’s PNGs may have been stored as base64 text. Run once: `GITHUB_TOKEN=ghp_your_token python3 push_agent_images_to_github.py` — this re-pushes the images as proper binary blobs so they render.
