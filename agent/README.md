@@ -7,7 +7,7 @@ We created a **local Power Query agent**: a small web app (plain HTML/JS fronten
 **Login (password required):**  
 Enter the password to access the chat. Wrong password shows an error and lets you retry; you cannot reach the chat until authentication succeeds.
 
-https://github.com/portal2anti/ExcelMCP-DEMO/blob/9379d72fb74f20e0dfd2a9bc205e55627e75dc35/agent/sc1.png
+![Power Query Agent — Chat](sc1.png)
 
 **Chat (after login):**  
 You type requests in plain language (e.g. “top 5 rows per month by Unused FTE for table testData”). The agent returns Power Query M code; you can copy it into Excel’s Power Query Advanced Editor. Conversation history is kept for the session; you can clear it with “Clear history”.
